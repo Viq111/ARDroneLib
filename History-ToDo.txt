@@ -1,0 +1,79 @@
+ToDo:
+
+- Add a green icon to gui when we are receiving data
+- Add script to connect to AP or if nothing detected, create AP
+- Add connect_back function to connect the drone back to an AP
+- Change ARDroneLib.configure to support ACK when Navdata info are received
+- Add an emergency window we can click on at any time
+
+##################
+# ARDroneConfig: #
+##################
+r3:
+- Changed the way this library is called. It is now accessible via ARDroneLib.set_config
+- Added animations support: flip, carpet_circle
+- Added autonomous_flight: gps or carpet
+
+r2:
+- Added working config for GPS
+
+r1:
+- Created some initial config for tag
+
+###############
+# ARDroneLib: #
+###############
+
+r4:
+- Added support for continuous command
+- Added set_config to set config now
+
+r3:
+- Added navigation data support (receive informations from the drone)(NavData)
+- Added config command
+
+r2:
+- New commands:
+	Reset, Calibrate,
+	Navigate, Forward, Backward, Left, Right,
+	Up, Down, Rotate_left, Rotate_right
+
+
+r1:
+- Created thread to handle commands
+- New commands: Take Off, Land, Emergency
+
+###################
+# ARDroneNavdata: #
+###################
+
+r3:
+- Added GPS data
+
+r2:
+- Added tag data
+- Added simple navigation data (navdata_demo)
+
+r1:
+- Added drone status data
+
+
+################
+# ARDroneTest: #
+################
+r4:
+- Cleaned the code, should be stable for now
+- Added GPS and Carpet test
+- Added a secure land for drone if something goes wrong
+
+r3:
+- Added the possibility to print data
+
+r2:
+- Added GUI
+- You can now choose the test you want to perform
+
+r1:
+- Test of TakeOff, Land
+- List of commands implemented
+- You can choose the command to send
