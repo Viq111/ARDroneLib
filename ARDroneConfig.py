@@ -1,8 +1,8 @@
 # -*- coding:Utf-8 -*-
-# ARDrone Package
+# ARDrone Lib Package
 prog_name = "AR.Drone Config"
 # version:
-version = 3
+version = 4
 # By Vianney Tran, Romain Fihue, Giulia Guidi, Julien Lagarde
 # License: Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0) 
 # (http://creativecommons.org/licenses/by-sa/3.0/)
@@ -10,7 +10,6 @@ version = 3
 ##############
 ### IMPORT ###
 ##############
-import time
 
 ###################
 ### DEFINITIONS ###
@@ -21,6 +20,10 @@ def activate_navdata(activate=True):
     "Prepare the drone so he can send navdata back to us"
     if activate:    return [("general:navdata_demo","FALSE")] #Activate navdata
     else:   return [("general:navdata_demo","TRUE")]
+def activate_gps(activate=True):
+    "Prepare the drone to receive GPS command"
+    if activate:    return [("control:flying_mode","0"),("control:autonomous_flight","FALSE")]
+    else:           return []
 def detect_tag(color=0):
     """ Send the config to the drone to activate drone detection
         0 is the blue-orange color
@@ -32,11 +35,6 @@ def detect_tag(color=0):
     com.append(("detect:enemy_colors",tag_color))
     com.append(("detect:enemy_without_shell","0"))
     return com
-
-def detect_carpet(activate = True):
-    "Activate carpet detection"
-    if activate:    return [("detect:detect_type","15"),("control:flying_camera_enable","TRUE")]
-    else:           return [("control:flying_camera_enable","FALSE")]
 
 # ONE-TIME CONFIG RELATED
 def indoor(activate = True):
@@ -65,7 +63,10 @@ def set_ultrasound(freq=0):
     "Set the ultrasound frequence"
     if freq:    return [("pic:ultrasound_freq","7")]
     else:       return [("pic:ultrasound_freq","8")]
-    
+def record_video(activate = True):
+    "Start/Stop the recording of a video on the USB key"
+    if activate:    return[("video:video_on_usb","true"),("video:video_codec","130")]
+    else:           return [("video:video_codec","128")]
     
 # Animations
 def flip(side="LEFT"):
@@ -78,7 +79,7 @@ def flip(side="LEFT"):
     return [("control:flight_anim",str(s)+",15")]
 
 # Autonomous Flight
-def goto_gps_point(latitude, longitude, altitude=2, cap=0, speed=1):
+def goto_gps_point(latitude, longitude, altitude=2, cap=0, speed=1, continuous=False):
     "Send the drone to the GPS point, cap is in degre"
     if (longitude == 0) or (latitude == 0):   return [] # Try not to send drone to somewhere weird
     # Compute each data
@@ -87,14 +88,14 @@ def goto_gps_point(latitude, longitude, altitude=2, cap=0, speed=1):
     alt = int(altitude*1000)
     cap = int(cap)
     # Create the right parameter according to doc
-    param1 = "10,500,"+str(lati)+","+str(longi)+","+str(alt)+",0,0,0," + str(cap) + ",0"
-    #param1 = "0,10,1500,0,0,0,0,0,0,0,0" # Forward traveling (1500 is x speed)
+    param1 = "10000,1500,"+str(lati)+","+str(longi)+","+str(alt)+",0,0,0," + str(cap) + ",0"
     # Let's go !
     com = list()
-    com.append(("control:flying_mode","0"))
-    com.append(("control:autonomous_flight","FALSE"))
-    com.append(("control:travelling_mode",param1))
-    com.append(("control:travelling_enable","TRUE"))
+    #if not continuous:  com.append(("control:flying_mode","0")) # To Check
+    #if not continuous:  com.append(("control:autonomous_flight","FALSE")) # To Check
+    if not continuous:  com.append(("control:flying_camera_enable","FALSE"))
+    com.append(("control:flying_camera_mode",param1))
+    if not continuous:  com.append(("control:flying_camera_enable","TRUE"))
     return com
 
 ###############
@@ -102,8 +103,9 @@ def goto_gps_point(latitude, longitude, altitude=2, cap=0, speed=1):
 ###############
 
 SUPPORTED_CONFIG = {
-    "detect_tag":detect_tag, "detect_carpet":detect_carpet, "activate_navdata":activate_navdata,                                    # Data activation
-    "indoor":indoor, "outdoor":outdoor, "nervosity_level":nervosity_level, "max_altitude":max_altitude, "set_ultrasound":set_ultrasound # One-time config
+    "detect_tag":detect_tag, "activate_navdata":activate_navdata, "activate_gps":activate_gps,           # Data activation
+    "indoor":indoor, "outdoor":outdoor, "nervosity_level":nervosity_level, "max_altitude":max_altitude, "set_ultrasound":set_ultrasound,# One-time config
+    "record_video":record_video
     }
 AUTONOMOUS_FLIGHT = {"gps":goto_gps_point}
 ANIMATIONS = {"flip":flip}

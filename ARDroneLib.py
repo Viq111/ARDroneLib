@@ -1,5 +1,5 @@
 # -*- coding:Utf-8 -*-
-# ARDrone Package
+# ARDrone Lib Package
 prog_name = "AR.Drone Lib"
 # version:
 version = 4
@@ -82,7 +82,7 @@ class Drone():
     def list_config(self):
         "List all possible configuration"
         return list(ARDroneConfig.SUPPORTED_CONFIG.keys())
-    def goto(self, method, x, y, z, cap=0, speed=1):
+    def goto(self, method, x, y, z, cap=0, speed=1,continuous=False):
         """ Send the drone to a specific location with the method
             Supported method: gps, carpet
         """
@@ -90,7 +90,7 @@ class Drone():
         if method not in ARDroneConfig.AUTONOMOUS_FLIGHT.keys():
             raise AttributeError("The flight method "+str(method)+" can't be found!")
         self.c(None) # Deactivating the sending of navigation commands
-        at_commands = ARDroneConfig.AUTONOMOUS_FLIGHT[method](x,y,z,cap,speed)
+        at_commands = ARDroneConfig.AUTONOMOUS_FLIGHT[method](x,y,z,cap,speed,continuous)
         for at in at_commands:
             self.comThread.configure(at[0],at[1])
         return True
@@ -182,6 +182,7 @@ class _CommandThread(threading.Thread):
         self.continous_config = None # If not set to None, will issue this command each time instead of command
         self.com = None # Last command to issue
         self.socket_lock = threading.Lock() # Create the lock for the socket
+        self.navdata_enabled = False # If navdata is enabled or not (will check ACK)
         self.__ack = False
         # Create the UDP Socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -193,7 +194,7 @@ class _CommandThread(threading.Thread):
         self.app_id =       "".join(random.sample("0123456789abcdef",8))
         self.is_configurated = False
         threading.Thread.__init__(self)
-        
+    
     # Usable commands
     def command(self,command=None):
         "Send a command to the AR.Drone"
@@ -207,37 +208,51 @@ class _CommandThread(threading.Thread):
             # Activate the config
             self.is_configurated = True
             self.configure("custom:session_id",self.session_id)
+            time.sleep(1) # Wait a lot in order for file to be created
             self.configure("custom:profile_id",self.profile_id)
+            time.sleep(1)
             self.configure("custom:application_id",self.app_id)
+            time.sleep(1)
         self.socket_lock.acquire()
-        tries = 0
-        while tries <= 0:
+        if self.navdata_enabled:    tries = 5
+        else:                       tries=0     # Only one try when no navdata (and wait)
+        while tries >= 0:
             to_send = "AT*CONFIG_IDS="+str(self.counter) + ',"' + self.session_id + '","' + self.profile_id + '","' + self.app_id + '"\r'
             self.sock.send(to_send)
-            time.sleep(0.15)
+            if not self.navdata_enabled:    time.sleep(0.15)
             to_send = "AT*CONFIG="+str(self.counter+1)+',"' + str(argument) + '","' + str(value) + '"\r'
             if DEBUG:
                 print to_send # Printing the AT*CONFIG we are sending
             self.sock.send(to_send)
             self.counter = self.counter + 2
-            # Check if we receive acknowledgement
-            time.sleep(0.05)
-            if self.__ack:
-                self.__ack = False
-                break
-            tries += 1
+            if self.navdata_enabled:    # Wait until we receive ACK if navadata enable
+                ack = False # not acknoledged first
+                for i in range(100):
+                    if self.__ack:
+                        #print "OK"
+                        break
+                    time.sleep(0.5/100) # Wait max 0.5 secs
+                if self.__ack:
+                    self.__ack = False
+                    break
+                    
+            
+            else:   time.sleep(0.05)    # But if we don't have navdata, just wait a fixed period
+            tries -= 1
         self.sock.send("AT*CTRL="+str(self.counter)+",5,0")
         self.counter = self.counter + 1
         self.socket_lock.release()
-        if tries < 4:
-            return True
-        else:
-            return False
+        if tries >= 0 or not self.navdata_enabled:  return True
+        else:                                       return False
     # Internal functions
     def _ack_command(self):
         "Call this function when the command is acknoledge"
         self.__ack = True
         return True
+    def _activate_navdata(self,activate=True):
+        "Call this function when navdata are enabled"
+        if activate:    self.navdata_enabled = True
+        else:           self.navdata_enabled = False
     
     def run(self):
         "Send commands every 30ms"
@@ -253,7 +268,14 @@ class _CommandThread(threading.Thread):
             self.socket_lock.release()
             time.sleep(0.03)
         self.sock.close()
-    
+    def reconnect(self):
+        "Try to restart the socket"
+        self.socket_lock.acquire()
+        self.sock.shutdown()
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.connect((self.ip, self.port))
+        self.socket_lock.release()
+        
     def stop(self):
         "Stop the communication"
         self.running = False
@@ -286,6 +308,7 @@ class _NavdataThread(threading.Thread):
 
     def run(self):
         "Start the data handler"
+        self.com._activate_navdata(activate=True) # Tell com thread that we are here
         # Initialize the drone to send the data
         self.sock.sendto("\x01\x00\x00\x00", (self.ip,self.port))
         time.sleep(0.05)
@@ -300,7 +323,12 @@ class _NavdataThread(threading.Thread):
                 if rep["drone_state"]['command_ack'] == 1:
                     self.com._ack_command()
                 self.callback(rep)
+        self.com._activate_navdata(activate=False) # Tell com thread that we are out
         self.sock.close()
+    def reconnect(self):
+        "Try to send another packet to reactivate navdata"
+        self.sock.sendto("\x01\x00\x00\x00", (self.ip,self.port))
+        return True
         
     def stop(self):
         "Stop the communication"

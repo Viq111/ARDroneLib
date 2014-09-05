@@ -1,5 +1,5 @@
 # -*- coding:Utf-8 -*-
-# ARDrone Package
+# ARDrone Lib Package
 prog_name = "AR.Drone GUI"
 # version:
 version = 4
@@ -17,6 +17,8 @@ from Tkinter import *
 ###############
 ### GLOBALS ###
 ###############
+
+FPS = 50
 
 ###################
 ### DEFINITIONS ###
@@ -36,14 +38,16 @@ def kill_fen(root):
 ###############
 
 class ControlWindow():
-    "Create a window to control the drone"
+    "Create a simple window to control the drone"
     def __init__(self,default_action=nop_func):
         "Create a window to control the drone"
         self.actions = dict()   # Actions associated to keys
         self.to_print = list()  # Data we have to print each time
         self.default_action = default_action
-        self.text = None
+        self.text = None # Text that will be changed
+        self.text_label = None
         self.last_key = None
+        self.running = False
     def add_action(self,button_bind,function_call):
         "Add an action when a key is pressed"
         self.actions[button_bind] = function_call
@@ -56,8 +60,10 @@ class ControlWindow():
         return True
     def change_text(self, new_text):
         "Change the text inside the box"
-        if self.text == None:               return False
-        self.text.configure(text=str(new_text))
+        try:    new_text=str(new_text) # Check if we have no error changing text
+        except: return False
+        if self.text is None:   return False # Window not yet initiated
+        self.text.set(new_text)
         return True
     def callback(self, navdata):
         "Callback function that can be given to Navdata filter"
@@ -79,21 +85,33 @@ class ControlWindow():
             # Format
             new_text = new_text + str(p[0]) + ": " + str(data) + "\n"
         # And done
-        try:    self.change_text(new_text) # If window not killed yet
-        except: pass
+        self.change_text(new_text)        
     
     def start(self):
         "Activate the window (and keep the thread)"
         self.fen = Tk()
         cadre = Frame(self.fen, width=500, height = 200, bg="grey")
-        self.text = Label(self.fen,text="Waiting data ...", fg = "black")
-        self.text.pack()
+        self.text = StringVar() # Text that will be changed
+        self.text_label = Label(self.fen,textvariable=self.text, fg = "black")
+        self.text_label.pack()
         self.fen.bind("<KeyPress>",self._key_pressed)
         self.fen.bind("<KeyRelease>",self._key_released)        
         cadre.pack()
-        self.fen.protocol("WM_DELETE_WINDOW", lambda a=1: kill_fen(self))
-        self.fen.mainloop()
-    
+        self.fen.protocol("WM_DELETE_WINDOW", self.stop) # Called when the window is closed
+        #self.fen.mainloop()
+        self.running = True
+        while self.running:
+            self.fen.update()
+            time.sleep(1.0/FPS) # Adjust FPS
+
+    def stop(self):
+        "Stop the window"
+        try:    self.fen.destroy()
+        except: pass
+        try:    self.fen.quit()
+        except: pass
+        self.running = False
+        return True
 
     # Keys handler
     def _key_pressed(self, action):

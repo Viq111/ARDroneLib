@@ -1,8 +1,8 @@
 # -*- coding:Utf-8 -*-
-# ARDrone Package
+# ARDrone Lib Package
 prog_name = "AR.Drone NavData"
 # version:
-version = 3
+version = 4
 # By Vianney Tran, Romain Fihue, Giulia Guidi, Julien Lagarde
 # License: Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0) 
 # (http://creativecommons.org/licenses/by-sa/3.0/)
@@ -153,7 +153,7 @@ def navdata_decode(packet):
                 pass
             # Else we don't know
             else:
-                unsupported_option.append(block[i][0])
+                unsupported_option.append((block[i][0],block[i][1]))
                 
     
     navdata=dict()

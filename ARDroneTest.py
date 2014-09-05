@@ -1,5 +1,5 @@
 # -*- coding:Utf-8 -*-
-# ARDrone Package
+# ARDrone Lib Package
 prog_name = "AR.Drone Test"
 # version:
 version = 4
@@ -120,6 +120,7 @@ def menu_list(drone):
         if result == "7": drone.right()
         if result == "8": drone.calibrate()
         if result == "a": drone.reset()
+        if result == "b": drone.set_config(activate_navdata=True)
 
 # 3nd test
 def command_GUI(drone):
@@ -141,6 +142,8 @@ def command_GUI(drone):
     gui.add_action("t",drone.reset)
     gui.add_action("y",drone.calibrate)
     gui.add_action("e",lambda arg=drone: drone.animation("flip",("LEFT",)))
+    gui.add_action("j",lambda arg=drone: drone.set_config(record_video=True))
+    gui.add_action("k",lambda arg=drone: drone.set_config(record_video=False))
     # Add info
     gui.add_printable_data("Battery",("navdata_demo","battery_percentage"))
     gui.add_printable_data("Number of tags",("vision_detect","nb_detected"))
@@ -149,8 +152,9 @@ def command_GUI(drone):
     gui.add_printable_data("Width",("vision_detect","width"))
     gui.add_printable_data("Height",("vision_detect","height"))
     gui.add_printable_data("Distance",("vision_detect","distance"))
+    gui.add_printable_data("State (!=0)",("navdata_demo","ctrl_state"))
     drone.set_callback(gui.callback) # Enable the GUI to receive data from the drone
-    drone.set_config(activate_navdata=True,detect_tag=0)
+    drone.set_config(activate_navdata=True,detect_tag=1)
     gui.start()
 
 # 4th test: GPS Test
@@ -161,8 +165,8 @@ def GPS_Command(drone):
     pos1 = GPS_Coord()
     pos2 = GPS_Coord()
     pos3 = GPS_Coord(48.763947,2.288652) # Stade
-    drone.set_callback(save_gps_coord) # Change the callback so we can save the GPS data
     gui = ARDroneGUI.ControlWindow(default_action=drone.hover)
+    drone.set_callback(save_gps_coord) # Change the callback so we can save the GPS data
     # Commands
     gui.add_action("Up",drone.forward)
     gui.add_action("Down",drone.backward)
@@ -192,10 +196,10 @@ def GPS_Command(drone):
     gui.add_printable_data("State",("gps_info","data_available"))
     print "Press o to start reception...\nF,G,H - Save GPS point\nV,B,N (key must stay pressed) - GOTO GPS Point"
     # We don't start change the callback because we would lost gps info outside the gui
-    drone.set_config(activate_navdata=True)
+    drone.set_config(activate_navdata=True, activate_gps=True)
     gui.start()
     a.close()
-    
+
 ##################
 ###  __MAIN__  ###
 ##################
